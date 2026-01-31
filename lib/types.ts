@@ -151,6 +151,6 @@ export interface AppContextType {
   state: AppState;
   data: ProcessedData | null;
   error: string | null;
-  loadData: (dataUrl: string) => Promise<void>;
+  loadData: (source: string | File) => Promise<void>;
   setError: (error: string | null) => void;
 }

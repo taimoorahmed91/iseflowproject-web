@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useData } from "@/lib/DataContext";
-import { PolicySet } from "@/lib/types";
+import { PolicySet, Condition } from "@/lib/types";
+import ConditionPopover from "./ConditionPopover";
 
 export default function PolicySetList() {
   const { data } = useData();
@@ -40,86 +42,107 @@ function PolicySetCard({ policySet }: { policySet: PolicySet }) {
 
   return (
     <div
-      className={`border rounded-lg p-6 ${
-        isEnabled
-          ? "bg-slate-800 border-slate-700"
-          : "bg-slate-800/50 border-slate-700/50 opacity-60"
-      } ${isDefault ? "ring-2 ring-yellow-600/50" : ""}`}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-100">
-            {policySet.name}
-            <span className="ml-3 text-sm text-slate-400">Rank: {policySet.rank}</span>
-          </h2>
-          {policySet.description && (
-            <p className="text-sm text-slate-400 mt-1">{policySet.description}</p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <span
-            className={`px-3 py-1 rounded text-xs font-semibold ${
-              isEnabled
-                ? "bg-green-900/50 text-green-300 border border-green-700"
-                : "bg-gray-700 text-gray-400 border border-gray-600"
-            }`}
-          >
-            {policySet.state.toUpperCase()}
-          </span>
-          {isDefault && (
-            <span className="px-3 py-1 rounded text-xs font-semibold bg-yellow-900/50 text-yellow-300 border border-yellow-700">
-              DEFAULT
+        className={`border rounded-lg p-6 ${
+          isEnabled
+            ? "bg-slate-800 border-slate-700"
+            : "bg-slate-800/50 border-slate-700/50 opacity-60"
+        } ${isDefault ? "ring-2 ring-yellow-600/50" : ""}`}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-100">
+              {policySet.name}
+              <span className="ml-3 text-sm text-slate-400">Rank: {policySet.rank}</span>
+            </h2>
+            {policySet.description && (
+              <p className="text-sm text-slate-400 mt-1">{policySet.description}</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <span
+              className={`px-3 py-1 rounded text-xs font-semibold ${
+                isEnabled
+                  ? "bg-green-900/50 text-green-300 border border-green-700"
+                  : "bg-gray-700 text-gray-400 border border-gray-600"
+              }`}
+            >
+              {policySet.state.toUpperCase()}
             </span>
-          )}
+            {isDefault && (
+              <span className="px-3 py-1 rounded text-xs font-semibold bg-yellow-900/50 text-yellow-300 border border-yellow-700">
+                DEFAULT
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <span className="text-sm text-slate-500">Condition: </span>
+          <ConditionDisplay condition={policySet.condition} />
+        </div>
+
+        <div className="flex gap-3">
+          <Link
+            href={`/flowchart/${policySet.id}/auth`}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+          >
+            View Auth Flow ({policySet.authentication_policies.length})
+          </Link>
+          <Link
+            href={`/flowchart/${policySet.id}/authz`}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors"
+          >
+            View Authz Flow ({policySet.authorization_policies.length})
+          </Link>
         </div>
       </div>
-
-      <div className="mb-4">
-        <span className="text-sm text-slate-500">Condition: </span>
-        <span className="text-sm text-slate-300">
-          {policySet.condition ? renderConditionSummary(policySet.condition) : "(always matches)"}
-        </span>
-      </div>
-
-      <div className="flex gap-3">
-        <a
-          href={`/flowchart/${policySet.id}/auth`}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
-        >
-          View Auth Flow ({policySet.authentication_policies.length})
-        </a>
-        <a
-          href={`/flowchart/${policySet.id}/authz`}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium transition-colors"
-        >
-          View Authz Flow ({policySet.authorization_policies.length})
-        </a>
-      </div>
-    </div>
   );
 }
 
-function renderConditionSummary(condition: any): string {
-  if (!condition) return "(always matches)";
+interface ConditionDisplayProps {
+  condition: Condition | null;
+}
 
+function ConditionDisplay({ condition }: ConditionDisplayProps) {
+  if (!condition) {
+    return <span className="text-sm text-slate-300 italic">(always matches)</span>;
+  }
+
+  // Library condition - shows popover on hover
   if (condition.conditionType === "LibraryConditionAttributes" && condition.name) {
-    return condition.name;
+    return (
+      <ConditionPopover condition={condition}>
+        <span className="text-sm text-blue-400 underline decoration-dotted cursor-help">
+          {condition.name}
+        </span>
+      </ConditionPopover>
+    );
   }
 
+  // Inline condition - plain text
+  if (condition.conditionType === "ConditionAttributes") {
+    return (
+      <span className="text-sm text-slate-300">
+        {condition.dictionaryName}.{condition.attributeName} {condition.operator}{" "}
+        {condition.attributeValue}
+      </span>
+    );
+  }
+
+  // AND/OR Block - display as text
   if (
-    condition.conditionType === "ConditionAttributes" ||
-    condition.conditionType === "LibraryConditionAttributes"
+    condition.conditionType === "ConditionAndBlock" ||
+    condition.conditionType === "ConditionOrBlock"
   ) {
-    return `${condition.dictionaryName}.${condition.attributeName} ${condition.operator} ${condition.attributeValue}`;
+    const blockType = condition.conditionType === "ConditionAndBlock" ? "AND" : "OR";
+    const count = condition.children?.length || 0;
+
+    return (
+      <span className="text-sm text-orange-400">
+        {blockType} Block ({count} condition{count !== 1 ? "s" : ""})
+      </span>
+    );
   }
 
-  if (condition.conditionType === "ConditionAndBlock") {
-    return `AND Block (${condition.children?.length || 0} conditions)`;
-  }
-
-  if (condition.conditionType === "ConditionOrBlock") {
-    return `OR Block (${condition.children?.length || 0} conditions)`;
-  }
-
-  return "(complex condition)";
+  return <span className="text-sm text-slate-300">(complex condition)</span>;
 }

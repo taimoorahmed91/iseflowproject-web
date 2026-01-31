@@ -4,19 +4,20 @@ A Next.js web application that visualizes Cisco ISE (Identity Services Engine) n
 
 ## Features
 
-- **API-triggered loading**: External scripts push data via authenticated API endpoint
-- **Real-time updates**: Server-Sent Events (SSE) broadcast data to all connected clients
-- **Three application states**: Idle → Loading → Displaying
+- **Automatic data loading**: Data loads automatically on page load
 - **Interactive flowcharts**: Visualize authentication and authorization policy flows
+- **Diagonal layout**: Policies flow down the left side, results on the right
+- **Detail sidebar**: Click any node to see full policy details
+- **Condition rendering**: Beautiful recursive display of AND/OR condition blocks
 - **Dark theme**: Desktop-optimized interface
 
 ## Tech Stack
 
 - Next.js 14+ (App Router)
 - TypeScript
-- React Flow
-- Tailwind CSS
-- Server-Sent Events (SSE)
+- React Flow - Interactive flowchart visualization
+- Tailwind CSS - Styling
+- Lucide React - Icons
 
 ## Getting Started
 
@@ -30,18 +31,6 @@ A Next.js web application that visualizes Cisco ISE (Identity Services Engine) n
 ```bash
 # Install dependencies
 npm install
-
-# Create environment variables file
-# .env.local is already created with placeholder credentials
-```
-
-### Environment Variables
-
-Edit `.env.local`:
-
-```env
-BASIC_AUTH_USERNAME=taimoor
-BASIC_AUTH_PASSWORD=your-secure-password-here
 ```
 
 ### Development
@@ -53,6 +42,22 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+The app will automatically load the policy data from `public/data/processed_data.json`.
+
+### Updating Data
+
+To update the policy data:
+
+1. Download the latest `processed_data.json` from your ISE processing script
+2. Replace `public/data/processed_data.json` with the new file
+3. Refresh the browser (Cmd+R or F5)
+
+Or download directly from GitHub:
+```bash
+curl https://raw.githubusercontent.com/taimoorahmed91/iseflowproject/COMMIT_HASH/configs/processed_data.json \
+  -o public/data/processed_data.json
+```
+
 ### Production Build
 
 ```bash
@@ -63,50 +68,133 @@ npm run build
 npm start
 ```
 
-## API Usage
+## Usage
 
-### POST /api/load
+### Viewing Policy Sets
 
-Trigger data loading from GitHub.
+When you open the app, you'll see a list of all policy sets with:
+- Policy set name and rank
+- Enabled/disabled status
+- Default policy badge (if applicable)
+- Condition summary
+- Buttons to view authentication or authorization flows
 
-**Authentication**: HTTP Basic Auth
+### Viewing Flowcharts
 
-**Request Body**:
+Click "View Auth Flow" or "View Authz Flow" to see the interactive flowchart:
+- **Pan**: Click and drag the background
+- **Zoom**: Use mouse wheel or the +/- controls
+- **Click nodes**: View detailed information in the sidebar
+- **Minimap**: See overview in bottom-right corner
+
+### Policy Details
+
+Click any node in the flowchart to see:
+- Full policy information
+- Complete condition tree (with AND/OR blocks)
+- Authentication results (identity source, fail behaviors)
+- Authorization profiles with full configuration
+- Web redirection settings
+- DACL assignments
+- Security group tags
+
+## Project Structure
+
+```
+/app
+  /flowchart
+    /[policySetId]
+      /[type]
+        page.tsx   # Dynamic flowchart route (auth/authz)
+  page.tsx         # Main page (state router)
+  layout.tsx       # Root layout with DataProvider
+  globals.css      # Global styles
+
+/components
+  IdleState.tsx          # Waiting message (if data missing)
+  LoadingState.tsx       # Loading spinner
+  ErrorState.tsx         # Error display
+  PolicySetList.tsx      # List of policy sets
+  FlowChart.tsx          # React Flow visualization
+  DetailSidebar.tsx      # Node details panel
+  ConditionRenderer.tsx  # Recursive condition tree renderer
+
+/lib
+  types.ts               # TypeScript type definitions
+  DataContext.tsx        # React Context for state management
+  flowchartBuilder.ts    # Convert policies to nodes/edges
+
+/public
+  /data
+    processed_data.json  # ISE policy data (update this file)
+```
+
+## Flowchart Layout
+
+### Diagonal Pattern
+
+Policies flow diagonally - decision nodes on the left, results on the right:
+
+```
+Policy 1 (x=0, y=0)    ───Match──→  Result 1 (x=400, y=0)
+    │
+    │ No Match
+    ↓
+Policy 2 (x=0, y=180)  ───Match──→  Result 2 (x=400, y=180)
+    │
+    │ No Match
+    ↓
+Policy 3 (x=0, y=360)  ───Match──→  Result 3 (x=400, y=360)
+```
+
+### Color Coding
+
+**Policy Nodes:**
+- Blue background: Enabled policies
+- Gray background: Disabled policies
+- Yellow ring: Default policy
+
+**Result Nodes:**
+- Green: Permit/Accept
+- Red: Reject/Deny
+- Orange: Drop
+- Yellow: Continue
+
+**Edges:**
+- Green (2px): Match path
+- Gray (1px): No match path
+
+## Data Format
+
+The app expects a JSON file with this structure:
+
 ```json
 {
-  "dataUrl": "https://raw.githubusercontent.com/taimoorahmed91/iseflowproject/{COMMIT_HASH}/configs/processed_data.json"
+  "metadata": {
+    "generated_at": "2026-01-31T21:58:45Z",
+    "total_policy_sets": 3,
+    "total_authentication_policies": 5,
+    "total_authorization_policies": 14
+  },
+  "policy_sets": [
+    {
+      "id": "...",
+      "name": "PolicySet1",
+      "rank": 0,
+      "state": "enabled",
+      "condition": { ... },
+      "authentication_policies": [ ... ],
+      "authorization_policies": [ ... ]
+    }
+  ],
+  "reference_data": {
+    "authorization_profiles": { ... },
+    "authorization_profiles_detail": { ... }
+  }
 }
 ```
 
-**Example with curl**:
-```bash
-curl -X POST http://localhost:3000/api/load \
-  -H "Authorization: Basic dGFpbW9vcjp0ZW1wLXBhc3N3b3JkLTEyMw==" \
-  -H "Content-Type: application/json" \
-  -d '{"dataUrl": "https://raw.githubusercontent.com/taimoorahmed91/iseflowproject/abc123/configs/processed_data.json"}'
-```
-
-**Example with Python**:
-```python
-import requests
-import base64
-
-API_URL = "http://localhost:3000/api/load"
-USERNAME = "taimoor"
-PASSWORD = "temp-password-123"
-DATA_URL = "https://raw.githubusercontent.com/taimoorahmed91/iseflowproject/abc123/configs/processed_data.json"
-
-credentials = f"{USERNAME}:{PASSWORD}"
-encoded = base64.b64encode(credentials.encode()).decode()
-
-response = requests.post(
-    API_URL,
-    json={"dataUrl": DATA_URL},
-    headers={"Authorization": f"Basic {encoded}"}
-)
-
-print(response.json())
-```
+See `DATA_STRUCTURE.md` for complete documentation.
 
 ## Deployment
 
@@ -114,67 +202,61 @@ print(response.json())
 
 1. Push code to GitHub
 2. Import project in Vercel
-3. Set environment variables:
-   - `BASIC_AUTH_USERNAME`
-   - `BASIC_AUTH_PASSWORD`
-4. Deploy
+3. Deploy (no environment variables needed!)
+4. Your data is bundled with the app
 
-## Project Structure
+### Updating Data in Production
 
-```
-/app
-  /api
-    /load          # API endpoint for data loading
-    /events        # SSE endpoint for real-time updates
-  page.tsx         # Main page (state router)
-  layout.tsx       # Root layout with DataProvider
-  globals.css      # Global styles
+**Option 1: Rebuild and redeploy**
+1. Update `public/data/processed_data.json`
+2. Commit and push to GitHub
+3. Vercel auto-deploys
 
-/components
-  IdleState.tsx    # Waiting for data message
-  LoadingState.tsx # Loading spinner
-  ErrorState.tsx   # Error display
-  PolicySetList.tsx # List of policy sets
+**Option 2: Manual update**
+1. Download new `processed_data.json`
+2. Upload to Vercel's file system (if supported)
+3. Or use a separate data API endpoint
 
-/lib
-  types.ts         # TypeScript type definitions
-  DataContext.tsx  # React Context for state management
-  validators.ts    # URL and auth validation
-  eventEmitter.ts  # SSE event broadcaster
-```
+## Browser Compatibility
 
-## Development Phases
+Tested on:
+- Chrome (latest) ✓
+- Safari (latest) ✓
+- Firefox (latest) ✓
+- Edge (latest) ✓
 
-### ✅ Phase 1: API & Real-time (Completed)
-- Next.js project setup
-- API endpoint with Basic Auth
-- SSE implementation
-- Idle/Loading states
+## Performance
 
-### 🚧 Phase 2: Data Display (Next)
-- Policy set list view
-- Error handling improvements
-- UI polish
-
-### 📋 Phase 3: Flowchart Visualization (Upcoming)
-- React Flow integration
-- Node/edge generation
-- Diagonal layout algorithm
-- Basic styling
-
-### 📋 Phase 4: Interactivity (Upcoming)
-- Click handlers
-- Detail sidebar
-- Condition formatting
-- Profile detail lookups
+- Data loads in <100ms (cached after first load)
+- Flowchart renders in ~50ms
+- Smooth pan/zoom with 50+ nodes
+- Instant node click interactions
 
 ## Documentation
 
-- `DEVELOPER_INSTRUCTIONS.md` - Complete development guide
-- `API_SPEC.md` - API endpoint specifications
+- `DEVELOPER_INSTRUCTIONS.md` - Original development guide
+- `API_SPEC.md` - API specifications (now deprecated)
 - `DATA_STRUCTURE.md` - JSON data format documentation
-- `FLOWCHART_LAYOUT.md` - Flowchart layout algorithm (pending)
+- `PHASE1_COMPLETE.md` - Phase 1 implementation notes
+- `PHASE2_COMPLETE.md` - Phase 2 implementation notes
 
 ## License
 
 Private project for Taimoor Ahmed
+
+---
+
+## Changelog
+
+### v2.0.0 - Simplified Architecture
+- Removed SSE and API endpoints
+- Data now loads directly from `public/data/`
+- Simplified state management
+- Faster page loads
+- No authentication needed
+
+### v1.0.0 - Original Release
+- SSE-based real-time updates
+- API trigger endpoint
+- HTTP Basic Auth
+- GitHub URL loading

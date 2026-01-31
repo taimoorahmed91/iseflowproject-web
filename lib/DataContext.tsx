@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 import { ProcessedData, AppState, AppContextType } from "./types";
 
 const DataContext = createContext<AppContextType | undefined>(undefined);
@@ -10,43 +10,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<ProcessedData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Connect to SSE endpoint for real-time updates
-    const eventSource = new EventSource("/api/events");
-
-    eventSource.addEventListener("connected", () => {
-      console.log("Connected to event stream");
-    });
-
-    eventSource.addEventListener("data-update", async (event) => {
-      const { dataUrl } = JSON.parse(event.data);
-      console.log("Received data update:", dataUrl);
-      await loadData(dataUrl);
-    });
-
-    eventSource.addEventListener("error", (err) => {
-      console.error("SSE connection error:", err);
-      // Attempt to reconnect (browser does this automatically)
-    });
-
-    return () => {
-      eventSource.close();
-    };
-  }, []);
-
-  const loadData = async (dataUrl: string) => {
+  const loadData = async (source: string | File) => {
     try {
+      console.log("Loading data from:", source instanceof File ? source.name : source);
       setState("loading");
       setError(null);
 
-      // Fetch data from GitHub
-      const response = await fetch(dataUrl);
+      let jsonData;
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+      if (source instanceof File) {
+        // Load from uploaded file
+        const text = await source.text();
+        jsonData = JSON.parse(text);
+      } else {
+        // Load from URL or path
+        const response = await fetch(source);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+        }
+        jsonData = await response.json();
       }
-
-      const jsonData = await response.json();
 
       // Basic validation
       if (!jsonData.metadata || !jsonData.policy_sets || !jsonData.reference_data) {
@@ -66,13 +49,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
         policySet.authorization_policies.sort((a: any, b: any) => a.rule.rank - b.rule.rank);
       });
 
+      console.log("✓ Data loaded successfully:", jsonData.metadata);
       setData(jsonData as ProcessedData);
       setState("displaying");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+      console.error("Failed to load data:", err);
       setError(errorMessage);
       setState("idle");
-      console.error("Failed to load data:", err);
     }
   };
 
