@@ -1,0 +1,27 @@
+"I need you to build a web application based on these specifications. Please read all four documentation files carefully before starting:
+
+DEVELOPER_INSTRUCTIONS.md - Start here, this is the main guide
+API_SPEC.md - API endpoint specifications
+DATA_STRUCTURE.md - The JSON data structure you'll be working with
+FLOWCHART_LAYOUT.md - How to build the diagonal flowchart layout
+
+Key requirements:
+
+Next.js app deployed on Vercel
+Dark theme, desktop only
+Triggered by API call (not user input)
+Uses React Flow for flowcharts
+Server-Sent Events for real-time updates
+HTTP Basic Auth on API endpoint
+
+The GitHub repo with the data is: https://github.com/taimoorahmed91/iseflowproject
+Please read through all the docs first, then let me know if you have any questions before starting. Once you're clear on everything, create the Next.js project and build according to the specs.
+Focus on getting the core functionality working first:
+
+API endpoint with auth
+SSE for real-time updates
+Three states (idle, loading, display)
+Policy set list view
+Flowchart visualization with diagonal layout
+
+Let me know when you're ready to start or if anything is unclear."
