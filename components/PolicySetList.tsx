@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { PolicySet, Condition } from "@/lib/types";
 import ConditionPopover from "./ConditionPopover";
+import ServiceNamePopover from "./ServiceNamePopover";
 
 export default function PolicySetList() {
   const { data } = useData();
@@ -37,8 +38,11 @@ export default function PolicySetList() {
 }
 
 function PolicySetCard({ policySet }: { policySet: PolicySet }) {
+  const { data } = useData();
   const isEnabled = policySet.state === "enabled";
   const isDefault = policySet.default;
+
+  const protocolDetail = data?.reference_data?.allowed_protocols_detail?.[policySet.serviceName];
 
   return (
     <div
@@ -76,9 +80,21 @@ function PolicySetCard({ policySet }: { policySet: PolicySet }) {
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-2">
           <span className="text-sm text-slate-500">Condition: </span>
           <ConditionDisplay condition={policySet.condition} />
+        </div>
+
+        <div className="mb-4">
+          <span className="text-sm text-slate-500">Allowed Protocol: </span>
+          <ServiceNamePopover
+            protocolDetail={protocolDetail}
+            serviceName={policySet.serviceName}
+          >
+            <span className="text-sm text-blue-400 underline decoration-dotted cursor-pointer hover:text-blue-300 transition-colors">
+              {policySet.serviceName}
+            </span>
+          </ServiceNamePopover>
         </div>
 
         <div className="flex gap-3">
@@ -108,11 +124,11 @@ function ConditionDisplay({ condition }: ConditionDisplayProps) {
     return <span className="text-sm text-slate-300 italic">(always matches)</span>;
   }
 
-  // Library condition - shows popover on hover
+  // Library condition - shows popover on click
   if (condition.conditionType === "LibraryConditionAttributes" && condition.name) {
     return (
       <ConditionPopover condition={condition}>
-        <span className="text-sm text-blue-400 underline decoration-dotted cursor-help">
+        <span className="text-sm text-blue-400 underline decoration-dotted cursor-pointer hover:text-blue-300 transition-colors">
           {condition.name}
         </span>
       </ConditionPopover>

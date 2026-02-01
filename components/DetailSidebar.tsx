@@ -1,8 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
-import { AuthenticationPolicy, AuthorizationPolicy, ProcessedData } from "@/lib/types";
-import ConditionRenderer from "./ConditionRenderer";
+import { AuthenticationPolicy, AuthorizationPolicy, ProcessedData, Condition } from "@/lib/types";
+import ConditionPopover from "./ConditionPopover";
 
 interface DetailSidebarProps {
   isOpen: boolean;
@@ -88,7 +88,7 @@ export default function DetailSidebar({
             <div>
               <h3 className="text-sm font-semibold text-slate-400 mb-3">Condition</h3>
               <div className="bg-slate-900 p-4 rounded-lg overflow-x-auto">
-                <ConditionRenderer condition={policy.rule.condition} />
+                <ConditionDisplay condition={policy.rule.condition} />
               </div>
             </div>
 
@@ -226,4 +226,58 @@ function ProfileDetail({
       )}
     </div>
   );
+}
+
+// Condition display component with click-to-view for library conditions
+function ConditionDisplay({ condition }: { condition: Condition | null }) {
+  if (!condition) {
+    return <span className="text-slate-400 italic">(always matches)</span>;
+  }
+
+  // Library condition - clickable to show details
+  if (condition.conditionType === "LibraryConditionAttributes" && condition.name) {
+    return (
+      <div>
+        <ConditionPopover condition={condition}>
+          <span className="text-blue-400 underline decoration-dotted cursor-pointer hover:text-blue-300 transition-colors">
+            {condition.name}
+          </span>
+        </ConditionPopover>
+        {condition.description && (
+          <p className="text-slate-500 text-sm mt-2">{condition.description}</p>
+        )}
+      </div>
+    );
+  }
+
+  // Simple inline condition
+  if (condition.conditionType === "ConditionAttributes") {
+    return (
+      <div className="font-mono text-sm">
+        {condition.isNegate && <span className="text-red-400 font-bold mr-1">NOT</span>}
+        <span className="text-cyan-400">{condition.dictionaryName}</span>
+        <span className="text-slate-500">.</span>
+        <span className="text-green-400">{condition.attributeName}</span>
+        <span className="text-yellow-500 mx-2">{condition.operator?.toUpperCase()}</span>
+        <span className="text-purple-400">{condition.attributeValue}</span>
+      </div>
+    );
+  }
+
+  // AND/OR Block - show nested structure
+  if (condition.conditionType === "ConditionAndBlock" || condition.conditionType === "ConditionOrBlock") {
+    const blockType = condition.conditionType === "ConditionAndBlock" ? "AND" : "OR";
+    return (
+      <div className="space-y-2">
+        <div className="text-yellow-500 font-bold text-sm">{blockType} Block:</div>
+        {condition.children && condition.children.map((child, index) => (
+          <div key={index} className="ml-4 border-l-2 border-slate-700 pl-3">
+            <ConditionDisplay condition={child} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return <span className="text-slate-400 italic">(unknown condition type)</span>;
 }

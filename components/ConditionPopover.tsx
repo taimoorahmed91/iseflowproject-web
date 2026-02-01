@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { X } from "lucide-react";
 import { Condition } from "@/lib/types";
 
 interface ConditionPopoverProps {
@@ -42,13 +43,35 @@ export default function ConditionPopover({ condition, children }: ConditionPopov
     }
   }, [isVisible]);
 
+  // Close popover when clicking outside
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target as Node) &&
+        !triggerRef.current?.contains(event.target as Node)
+      ) {
+        setIsVisible(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isVisible]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsVisible(!isVisible);
+  };
+
   return (
     <>
       <span
         ref={triggerRef}
-        onMouseEnter={() => setIsVisible(true)}
-        onMouseLeave={() => setIsVisible(false)}
-        className="relative"
+        onClick={handleClick}
+        className="relative cursor-pointer"
       >
         {children}
       </span>
@@ -62,10 +85,15 @@ export default function ConditionPopover({ condition, children }: ConditionPopov
             left: `${position.left}px`,
           }}
         >
-          {/* Arrow */}
-          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-slate-800 border-b border-r border-slate-600 rotate-45" />
+          {/* Close button */}
+          <button
+            onClick={() => setIsVisible(false)}
+            className="absolute top-2 right-2 text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
 
-          <div className="space-y-3">
+          <div className="space-y-3 pr-6">
             {/* Name */}
             {condition.name && (
               <div>
