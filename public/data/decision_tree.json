@@ -1,0 +1,185 @@
+{
+  "summary": {
+    "total_rules": 10,
+    "endpoint_attribute_rules": 7,
+    "other_rules": 3,
+    "unique_values": {
+      "rVLAN": ["VLAN-100", "VLAN-200", "VLAN-300"],
+      "NetworkZone": ["Campus", "Remote", "Guest"],
+      "Tenant": ["Engineering", "Sales", "IT"]
+    }
+  },
+  "mermaid_flowchart": "graph TD\n  Start([Authorization Request]) --> Check_rVLAN{rVLAN?}\n  Check_rVLAN -->|VLAN-100| Check_Zone_1{NetworkZone?}\n  Check_rVLAN -->|VLAN-200| Check_Zone_2{NetworkZone?}\n  Check_rVLAN -->|VLAN-300| Profile_Guest[Guest_Access]\n  Check_Zone_1 -->|Campus| Check_Tenant_1{Tenant?}\n  Check_Zone_1 -->|Remote| Profile_Remote[Remote_Access]\n  Check_Tenant_1 -->|Engineering| Profile_Eng[Engineering_Full]\n  Check_Tenant_1 -->|Sales| Profile_Sales[Sales_Limited]\n  Check_Zone_2 -->|Campus| Profile_Standard[Standard_Access]\n  Check_Zone_2 -->|Guest| Profile_Guest",
+  "tree_structure": {
+    "type": "root",
+    "children": {
+      "rVLAN": {
+        "type": "decision",
+        "attribute": "rVLAN",
+        "children": {
+          "VLAN-100": {
+            "type": "decision",
+            "attribute": "NetworkZone",
+            "children": {
+              "Campus": {
+                "type": "decision",
+                "attribute": "Tenant",
+                "children": {
+                  "Engineering": {
+                    "type": "leaf",
+                    "rule": {
+                      "name": "Engineering_Full_Access",
+                      "rank": 1,
+                      "profile": "Engineering_Full",
+                      "policy_set": "PolicySet1",
+                      "state": "enabled"
+                    }
+                  },
+                  "Sales": {
+                    "type": "leaf",
+                    "rule": {
+                      "name": "Sales_Limited_Access",
+                      "rank": 2,
+                      "profile": "Sales_Limited",
+                      "policy_set": "PolicySet1",
+                      "state": "enabled"
+                    }
+                  }
+                }
+              },
+              "Remote": {
+                "type": "leaf",
+                "rule": {
+                  "name": "Remote_Access",
+                  "rank": 3,
+                  "profile": "Remote_Access",
+                  "policy_set": "PolicySet1",
+                  "state": "enabled"
+                }
+              }
+            }
+          },
+          "VLAN-200": {
+            "type": "decision",
+            "attribute": "NetworkZone",
+            "children": {
+              "Campus": {
+                "type": "leaf",
+                "rule": {
+                  "name": "Standard_Access",
+                  "rank": 4,
+                  "profile": "Standard_Access",
+                  "policy_set": "PolicySet2",
+                  "state": "enabled"
+                }
+              },
+              "Guest": {
+                "type": "leaf",
+                "rule": {
+                  "name": "Guest_Access",
+                  "rank": 5,
+                  "profile": "Guest_Access",
+                  "policy_set": "PolicySet2",
+                  "state": "enabled"
+                }
+              }
+            }
+          },
+          "VLAN-300": {
+            "type": "leaf",
+            "rule": {
+              "name": "Guest_Only",
+              "rank": 6,
+              "profile": "Guest_Access",
+              "policy_set": "PolicySet3",
+              "state": "enabled"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": [
+    {
+      "path_id": "path_001",
+      "rVLAN": "VLAN-100",
+      "NetworkZone": "Campus",
+      "Tenant": "Engineering",
+      "rule_name": "Engineering_Full_Access",
+      "rule_rank": 1,
+      "profile": "Engineering_Full",
+      "policy_set": "PolicySet1"
+    },
+    {
+      "path_id": "path_002",
+      "rVLAN": "VLAN-100",
+      "NetworkZone": "Campus",
+      "Tenant": "Sales",
+      "rule_name": "Sales_Limited_Access",
+      "rule_rank": 2,
+      "profile": "Sales_Limited",
+      "policy_set": "PolicySet1"
+    },
+    {
+      "path_id": "path_003",
+      "rVLAN": "VLAN-100",
+      "NetworkZone": "Remote",
+      "rule_name": "Remote_Access",
+      "rule_rank": 3,
+      "profile": "Remote_Access",
+      "policy_set": "PolicySet1"
+    },
+    {
+      "path_id": "path_004",
+      "rVLAN": "VLAN-200",
+      "NetworkZone": "Campus",
+      "rule_name": "Standard_Access",
+      "rule_rank": 4,
+      "profile": "Standard_Access",
+      "policy_set": "PolicySet2"
+    },
+    {
+      "path_id": "path_005",
+      "rVLAN": "VLAN-200",
+      "NetworkZone": "Guest",
+      "rule_name": "Guest_Access",
+      "rule_rank": 5,
+      "profile": "Guest_Access",
+      "policy_set": "PolicySet2"
+    },
+    {
+      "path_id": "path_006",
+      "rVLAN": "VLAN-300",
+      "rule_name": "Guest_Only",
+      "rule_rank": 6,
+      "profile": "Guest_Access",
+      "policy_set": "PolicySet3"
+    }
+  ],
+  "other_rules": [
+    {
+      "rule_name": "Time_Based_Access",
+      "rank": 10,
+      "profile": "Time_Limited",
+      "policy_set": "PolicySet1",
+      "conditions": "DEVICE:Location EQUALS Office AND Network_Access:UseCase EQUALS VPN",
+      "state": "enabled"
+    },
+    {
+      "rule_name": "Contractor_Access",
+      "rank": 11,
+      "profile": "Contractor_Limited",
+      "policy_set": "PolicySet2",
+      "conditions": "Identity:IdentityGroup EQUALS Contractors",
+      "state": "enabled"
+    },
+    {
+      "rule_name": "Emergency_Override",
+      "rank": 99,
+      "profile": "Emergency_Full",
+      "policy_set": "Default",
+      "conditions": "Network_Access:AuthenticationStatus EQUALS Success",
+      "state": "disabled"
+    }
+  ]
+}

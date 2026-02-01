@@ -144,13 +144,69 @@ export interface AllowedProtocolDetail extends AllowedProtocol {
   [key: string]: any;
 }
 
+// Decision Tree Types
+export interface DecisionTreeData {
+  summary: {
+    total_rules: number;
+    endpoint_attribute_rules: number;
+    other_rules: number;
+    unique_values: {
+      rVLAN: string[];
+      NetworkZone: string[];
+      Tenant: string[];
+    };
+  };
+  mermaid_flowchart: string;
+  tree_structure: TreeNode;
+  paths: DecisionPath[];
+  other_rules: OtherRule[];
+}
+
+export interface TreeNode {
+  type: "root" | "decision" | "leaf";
+  attribute?: string;
+  children?: Record<string, TreeNode>;
+  rule?: {
+    name: string;
+    rank: number;
+    profile: string;
+    policy_set: string;
+    state: string;
+  };
+}
+
+export interface DecisionPath {
+  path_id: string;
+  rVLAN?: string;
+  NetworkZone?: string;
+  Tenant?: string;
+  rule_name: string;
+  rule_rank: number;
+  profile: string;
+  policy_set: string;
+}
+
+export interface OtherRule {
+  rule_name: string;
+  rank: number;
+  profile: string;
+  policy_set: string;
+  conditions: string;
+  state: string;
+}
+
 // Application state types
 export type AppState = "idle" | "loading" | "displaying";
+export type ViewMode = "policy-sets" | "decision-tree";
 
 export interface AppContextType {
   state: AppState;
   data: ProcessedData | null;
+  decisionTreeData: DecisionTreeData | null;
   error: string | null;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
   loadData: (source: string | File) => Promise<void>;
+  loadDecisionTree: (source: string | File) => Promise<void>;
   setError: (error: string | null) => void;
 }
