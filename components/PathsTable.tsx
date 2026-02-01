@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { DecisionPath } from "@/lib/types";
+import { DynamicDecisionPath } from "@/lib/types";
 import { ChevronUp, ChevronDown, Search } from "lucide-react";
 
 interface PathsTableProps {
-  paths: DecisionPath[];
+  paths: DynamicDecisionPath[];
 }
 
-type SortKey = keyof DecisionPath;
+type SortKey = "path_id" | "rule_rank" | "rule_name" | "profile" | "state";
 type SortDirection = "asc" | "desc";
 
 export default function PathsTable({ paths }: PathsTableProps) {

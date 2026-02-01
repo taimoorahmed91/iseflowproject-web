@@ -81,16 +81,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
         jsonData = await response.json();
       }
 
-      // Basic validation
-      if (!jsonData.summary || !jsonData.mermaid_flowchart || !jsonData.paths) {
-        throw new Error("Invalid decision tree format: missing required fields");
+      // Basic validation - support both old static and new dynamic formats
+      const isDynamicFormat = jsonData.metadata && jsonData.policy_sets && jsonData.global_summary;
+      const isStaticFormat = jsonData.summary && jsonData.mermaid_flowchart && jsonData.paths;
+
+      if (!isDynamicFormat && !isStaticFormat) {
+        throw new Error("Invalid decision tree format: missing required fields (metadata, policy_sets, or summary, mermaid_flowchart, paths)");
       }
 
       console.log("✓ Decision tree loaded successfully");
       setDecisionTreeData(jsonData as DecisionTreeData);
       setState("displaying");
       setViewMode("decision-tree");
-      console.log("State set to displaying, viewMode set to decision-tree");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
       console.error("Failed to load decision tree:", err);

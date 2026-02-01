@@ -144,55 +144,61 @@ export interface AllowedProtocolDetail extends AllowedProtocol {
   [key: string]: any;
 }
 
-// Decision Tree Types
+// Decision Tree Types - Dynamic Structure
 export interface DecisionTreeData {
+  metadata: {
+    generated_at: string;
+    source_file: string;
+    total_policy_sets: number;
+    total_rules: number;
+  };
+  discovered_attributes: {
+    all_attributes: string[];
+    attribute_frequency: Record<string, number>;
+    attribute_values: Record<string, string[]>;
+  };
+  policy_sets: Record<string, PolicySetAnalysis>;
+  global_summary: {
+    policy_sets_analyzed: number;
+    total_unique_attributes: number;
+    most_common_attributes: string[];
+  };
+}
+
+export interface PolicySetAnalysis {
   summary: {
     total_rules: number;
-    endpoint_attribute_rules: number;
-    other_rules: number;
-    unique_values: {
-      rVLAN: string[];
-      NetworkZone: string[];
-      Tenant: string[];
-    };
+    hierarchy: string[];
+    attributes_used: string[];
+    attribute_frequency: Record<string, number>;
+    unique_values_per_attribute: Record<string, string[]>;
   };
   mermaid_flowchart: string;
-  tree_structure: TreeNode;
-  paths: DecisionPath[];
-  other_rules: OtherRule[];
+  tree_structure: Record<string, any>; // Dynamic nested structure
+  paths: DynamicDecisionPath[];
+  rules: RuleInfo[];
 }
 
-export interface TreeNode {
-  type: "root" | "decision" | "leaf";
-  attribute?: string;
-  children?: Record<string, TreeNode>;
-  rule?: {
-    name: string;
-    rank: number;
-    profile: string;
-    policy_set: string;
-    state: string;
-  };
-}
-
-export interface DecisionPath {
-  path_id: string;
-  rVLAN?: string;
-  NetworkZone?: string;
-  Tenant?: string;
-  rule_name: string;
+export interface DynamicDecisionPath {
+  path_id: number;
   rule_rank: number;
+  rule_name: string;
+  rule_id: string;
   profile: string;
-  policy_set: string;
+  state: string;
+  default: boolean;
+  conditions: Record<string, string>;
+  conditions_formatted?: string;
 }
 
-export interface OtherRule {
-  rule_name: string;
+export interface RuleInfo {
   rank: number;
+  name: string;
   profile: string;
-  policy_set: string;
-  conditions: string;
   state: string;
+  default: boolean;
+  attributes: Record<string, string>;
+  conditions_formatted: string;
 }
 
 // Application state types

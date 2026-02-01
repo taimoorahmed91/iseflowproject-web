@@ -5,13 +5,11 @@ import IdleState from "@/components/IdleState";
 import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import PolicySetList from "@/components/PolicySetList";
-import DecisionTreeView from "@/components/DecisionTreeView";
+import DynamicDecisionTreeView from "@/components/DynamicDecisionTreeView";
 import { Layers, GitBranch } from "lucide-react";
 
 export default function Home() {
   const { state, error, viewMode, setViewMode, data, decisionTreeData } = useData();
-
-  console.log("Home render - state:", state, "viewMode:", viewMode, "hasData:", data !== null, "hasDecisionTree:", decisionTreeData !== null);
 
   if (error) {
     return <ErrorState error={error} />;
@@ -28,8 +26,6 @@ export default function Home() {
   if (state === "displaying") {
     const hasData = data !== null;
     const hasDecisionTree = decisionTreeData !== null;
-
-    console.log("Displaying - hasData:", hasData, "hasDecisionTree:", hasDecisionTree, "viewMode:", viewMode);
 
     // If both datasets are loaded, show tabs
     if (hasData && hasDecisionTree) {
@@ -70,7 +66,7 @@ export default function Home() {
 
           {/* Content */}
           <div>
-            {viewMode === "policy-sets" ? <PolicySetList /> : <DecisionTreeView />}
+            {viewMode === "policy-sets" ? <PolicySetList /> : <DynamicDecisionTreeView />}
           </div>
         </div>
       );
@@ -78,7 +74,7 @@ export default function Home() {
 
     // Show only the available view
     if (hasDecisionTree) {
-      return <DecisionTreeView />;
+      return <DynamicDecisionTreeView />;
     }
 
     return <PolicySetList />;
