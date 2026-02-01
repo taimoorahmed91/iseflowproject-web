@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
-import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Download } from "lucide-react";
 
 interface MermaidFlowchartProps {
   chart: string;
@@ -56,8 +56,8 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
     renderChart();
   }, [chart]);
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.2, 3));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.2, 0.5));
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 5));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.5));
   const handleReset = () => {
     setZoom(1);
     setPosition({ x: 0, y: 0 });
@@ -81,10 +81,110 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
     setIsPanning(false);
   };
 
+  const handleDownloadImage = async () => {
+    if (!containerRef.current) return;
+
+    const svgElement = containerRef.current.querySelector("svg");
+    if (!svgElement) return;
+
+    try {
+      // Clone the SVG to avoid modifying the original
+      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+
+      // Get SVG dimensions
+      const bbox = svgElement.getBBox();
+      const width = bbox.width || 1200;
+      const height = bbox.height || 800;
+
+      // Set dimensions on cloned SVG for proper rendering
+      clonedSvg.setAttribute("width", width.toString());
+      clonedSvg.setAttribute("height", height.toString());
+      clonedSvg.setAttribute("viewBox", `${bbox.x} ${bbox.y} ${width} ${height}`);
+
+      // Add dark background to SVG
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("width", "100%");
+      rect.setAttribute("height", "100%");
+      rect.setAttribute("fill", "#1e293b");
+      clonedSvg.insertBefore(rect, clonedSvg.firstChild);
+
+      // Convert SVG to string
+      const svgString = new XMLSerializer().serializeToString(clonedSvg);
+
+      // Create a data URL instead of blob to avoid CORS issues
+      const svgDataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
+
+      // Create an image element
+      const img = new Image();
+
+      img.onload = () => {
+        try {
+          // Create canvas with higher resolution
+          const scale = 2;
+          const canvas = document.createElement("canvas");
+          canvas.width = width * scale;
+          canvas.height = height * scale;
+          const ctx = canvas.getContext("2d", { willReadFrequently: false });
+
+          if (ctx) {
+            // Scale context
+            ctx.scale(scale, scale);
+
+            // Draw the image
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Use toDataURL as fallback to avoid CORS issues
+            try {
+              const pngDataUrl = canvas.toDataURL("image/png");
+              const link = document.createElement("a");
+              link.download = `flowchart-${Date.now()}.png`;
+              link.href = pngDataUrl;
+              link.click();
+            } catch (e) {
+              // If canvas is still tainted, download SVG instead
+              console.warn("Canvas tainted, downloading SVG instead:", e);
+              downloadSvgDirectly(svgString);
+            }
+          }
+        } catch (error) {
+          console.error("Error creating PNG, downloading SVG instead:", error);
+          downloadSvgDirectly(svgString);
+        }
+      };
+
+      img.onerror = () => {
+        console.error("Error loading image, downloading SVG instead");
+        downloadSvgDirectly(svgString);
+      };
+
+      img.src = svgDataUrl;
+    } catch (error) {
+      console.error("Failed to download flowchart:", error);
+      alert("Failed to download flowchart. Please try again.");
+    }
+  };
+
+  const downloadSvgDirectly = (svgString: string) => {
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.download = `flowchart-${Date.now()}.svg`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="relative">
       {/* Controls */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <button
+          onClick={handleDownloadImage}
+          className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          title="Download as Image"
+        >
+          <Download className="w-4 h-4 text-white" />
+        </button>
         <button
           onClick={handleZoomIn}
           className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
@@ -92,6 +192,9 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
         >
           <ZoomIn className="w-4 h-4 text-slate-200" />
         </button>
+        <div className="px-3 py-2 bg-slate-800 rounded-lg text-slate-200 text-sm font-medium min-w-[4rem] text-center">
+          {Math.round(zoom * 100)}%
+        </div>
         <button
           onClick={handleZoomOut}
           className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
@@ -129,7 +232,7 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
       </div>
 
       <div className="mt-2 text-xs text-slate-500 text-center">
-        Click and drag to pan • Use zoom controls or scroll wheel
+        Click and drag to pan • Zoom up to 500% • Download as PNG or SVG image
       </div>
     </div>
   );
