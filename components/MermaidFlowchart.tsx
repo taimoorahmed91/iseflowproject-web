@@ -137,7 +137,7 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
     renderChart();
   }, [chart]);
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 5));
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 10));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.5));
   const handleReset = () => {
     setZoom(1);
@@ -295,7 +295,7 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
       {/* Flowchart Container */}
       <div
         className="overflow-hidden bg-slate-900 rounded-lg border border-slate-700 p-8"
-        style={{ minHeight: "600px", cursor: isPanning ? "grabbing" : "grab" }}
+        style={{ minHeight: "800px", cursor: isPanning ? "grabbing" : "grab" }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -313,7 +313,7 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
       </div>
 
       <div className="mt-2 text-xs text-slate-500 text-center">
-        Click and drag to pan • Zoom up to 500% • Download as PNG or SVG image
+        Click and drag to pan • Zoom up to 1000% • Download as PNG or SVG image
       </div>
     </div>
   );
