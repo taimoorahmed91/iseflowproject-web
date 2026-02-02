@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
-import { ZoomIn, ZoomOut, Maximize2, Download } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Download, RotateCcw } from "lucide-react";
 
 interface MermaidFlowchartProps {
   chart: string;
@@ -94,6 +94,7 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
   const [isPanning, setIsPanning] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     mermaid.initialize({
@@ -114,6 +115,78 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
       },
     });
 
+    const makeNodesDraggable = () => {
+      if (!containerRef.current) return;
+
+      const svg = containerRef.current.querySelector("svg");
+      if (!svg) return;
+
+      // Find all nodes (g elements with class containing 'node')
+      const nodes = svg.querySelectorAll("g.node");
+
+      nodes.forEach((node) => {
+        const element = node as SVGGElement;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let currentTransform = { x: 0, y: 0 };
+
+        // Parse existing transform if any
+        const transformAttr = element.getAttribute("transform");
+        if (transformAttr) {
+          const match = transformAttr.match(/translate\(([^,]+),([^)]+)\)/);
+          if (match) {
+            currentTransform.x = parseFloat(match[1]);
+            currentTransform.y = parseFloat(match[2]);
+          }
+        }
+
+        // Make cursor pointer on hover
+        element.style.cursor = "move";
+
+        const onMouseDown = (e: MouseEvent) => {
+          isDragging = true;
+          e.stopPropagation(); // Prevent panning
+
+          // Get mouse position relative to SVG
+          const svgRect = svg.getBoundingClientRect();
+          const svgX = (e.clientX - svgRect.left) / zoom;
+          const svgY = (e.clientY - svgRect.top) / zoom;
+
+          dragOffset.x = svgX - currentTransform.x;
+          dragOffset.y = svgY - currentTransform.y;
+
+          element.style.cursor = "grabbing";
+        };
+
+        const onMouseMove = (e: MouseEvent) => {
+          if (!isDragging) return;
+          e.stopPropagation();
+
+          const svgRect = svg.getBoundingClientRect();
+          const svgX = (e.clientX - svgRect.left) / zoom;
+          const svgY = (e.clientY - svgRect.top) / zoom;
+
+          currentTransform.x = svgX - dragOffset.x;
+          currentTransform.y = svgY - dragOffset.y;
+
+          element.setAttribute(
+            "transform",
+            `translate(${currentTransform.x}, ${currentTransform.y})`
+          );
+        };
+
+        const onMouseUp = () => {
+          isDragging = false;
+          element.style.cursor = "move";
+        };
+
+        element.addEventListener("mousedown", onMouseDown as EventListener);
+        svg.addEventListener("mousemove", onMouseMove as EventListener);
+        svg.addEventListener("mouseup", onMouseUp);
+        svg.addEventListener("mouseleave", onMouseUp);
+      });
+    };
+
     const renderChart = async () => {
       if (containerRef.current) {
         try {
@@ -121,6 +194,9 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
           const sanitizedChart = sanitizeMermaidChart(chart);
           const { svg } = await mermaid.render(id, sanitizedChart);
           containerRef.current.innerHTML = svg;
+
+          // Make nodes draggable after rendering
+          setTimeout(() => makeNodesDraggable(), 100);
         } catch (error) {
           console.error("Failed to render mermaid chart:", error);
           if (containerRef.current) {
@@ -135,11 +211,17 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
     };
 
     renderChart();
-  }, [chart]);
+  }, [chart, zoom, refreshKey]);
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 10));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.5));
   const handleReset = () => {
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleResetLayout = () => {
+    setRefreshKey(prev => prev + 1);
     setZoom(1);
     setPosition({ x: 0, y: 0 });
   };
@@ -255,6 +337,130 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportDrawio = async () => {
+    if (!containerRef.current) return;
+
+    const svgElement = containerRef.current.querySelector("svg");
+    if (!svgElement) return;
+
+    try {
+      // Parse SVG nodes and edges
+      const nodes = svgElement.querySelectorAll("g.node");
+      const edges = svgElement.querySelectorAll("g.edgePath");
+
+      let cellId = 10;
+      const cells: string[] = [];
+
+      // Process nodes
+      nodes.forEach((nodeGroup) => {
+        const g = nodeGroup as SVGGElement;
+
+        // Get transform position
+        const transform = g.getAttribute("transform") || "";
+        const translateMatch = transform.match(/translate\(([^,]+),([^)]+)\)/);
+        let x = 100, y = 100;
+
+        if (translateMatch) {
+          x = parseFloat(translateMatch[1]) + 400; // Offset for visibility
+          y = parseFloat(translateMatch[2]) + 100;
+        }
+
+        // Get text content
+        const textElement = g.querySelector("text");
+        const labelText = textElement?.textContent?.trim() || "Node";
+
+        // Get shape type from class
+        const className = g.getAttribute("class") || "";
+        let shape = "rectangle";
+        let fillColor = "#ffebee";
+        let strokeColor = "#b71c1c";
+
+        if (className.includes("disabledResult")) {
+          fillColor = "#4a5568";
+          strokeColor = "#718096";
+        } else if (className.includes("result")) {
+          fillColor = "#ffebee";
+          strokeColor = "#b71c1c";
+        } else {
+          // Decision/attribute nodes
+          shape = "rhombus";
+          fillColor = "#fff3e0";
+          strokeColor = "#e65100";
+        }
+
+        // Get approximate dimensions from bbox or use defaults
+        const bbox = g.getBBox();
+        const width = Math.max(bbox.width, 120);
+        const height = Math.max(bbox.height, 60);
+
+        cells.push(`        <mxCell id="${cellId}" value="${labelText.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=${fillColor};strokeColor=${strokeColor};fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="${x}" y="${y}" width="${width}" height="${height}" as="geometry" />
+        </mxCell>`);
+
+        cellId++;
+      });
+
+      // Process edges (connections)
+      edges.forEach((edgePath) => {
+        const path = edgePath as SVGGElement;
+        const pathElement = path.querySelector("path");
+
+        if (pathElement) {
+          const d = pathElement.getAttribute("d") || "";
+
+          // Try to extract start and end points (simplified)
+          const coords = d.match(/M([\d.]+),([\d.]+).*L([\d.]+),([\d.]+)/);
+
+          if (coords) {
+            const x1 = parseFloat(coords[1]) + 400;
+            const y1 = parseFloat(coords[2]) + 100;
+            const x2 = parseFloat(coords[3]) + 400;
+            const y2 = parseFloat(coords[4]) + 100;
+
+            // Get edge label if exists
+            const labelElement = path.querySelector("text");
+            const label = labelElement?.textContent?.trim() || "";
+
+            cells.push(`        <mxCell id="${cellId}" value="${label.replace(/"/g, '&quot;')}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748b;fontColor=#e2e8f0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="${x1}" y="${y1}" as="sourcePoint" />
+            <mxPoint x="${x2}" y="${y2}" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>`);
+
+            cellId++;
+          }
+        }
+      });
+
+      // Create draw.io XML with individual cells
+      const drawioXml = `<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="${new Date().toISOString()}" agent="ISE Flow Visualizer" version="21.0.0" etag="${Math.random().toString(36).substring(2)}" type="device">
+  <diagram name="ISE Flowchart" id="flowchart">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+${cells.join('\n')}
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>`;
+
+      // Download
+      const blob = new Blob([drawioXml], { type: "application/xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `flowchart-${Date.now()}.drawio`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export to draw.io:", error);
+      alert("Failed to export to draw.io. Please try PNG or SVG export instead.");
+    }
+  };
+
   return (
     <div className="relative">
       {/* Controls */}
@@ -290,6 +496,20 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
         >
           <Maximize2 className="w-4 h-4 text-slate-200" />
         </button>
+        <button
+          onClick={handleResetLayout}
+          className="p-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+          title="Reset Node Positions"
+        >
+          <RotateCcw className="w-4 h-4 text-white" />
+        </button>
+        <button
+          onClick={handleExportDrawio}
+          className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+          title="Export to Draw.io"
+        >
+          <Download className="w-4 h-4 text-white" />
+        </button>
       </div>
 
       {/* Flowchart Container */}
@@ -313,7 +533,7 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
       </div>
 
       <div className="mt-2 text-xs text-slate-500 text-center">
-        Click and drag to pan • Zoom up to 1000% • Download as PNG or SVG image
+        Drag background to pan • Drag nodes to reposition • Zoom up to 1000% • Export as PNG/SVG/Draw.io
       </div>
     </div>
   );
