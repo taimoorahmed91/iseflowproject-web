@@ -9,8 +9,22 @@ interface MermaidFlowchartProps {
 }
 
 /**
- * Sanitizes Mermaid chart syntax by escaping special characters in node labels
- * This fixes parsing errors caused by parentheses and other special chars
+ * Sanitizes text content by escaping special Mermaid characters
+ */
+function sanitizeText(text: string): string {
+  return text
+    .replace(/\(/g, '&#40;')   // (
+    .replace(/\)/g, '&#41;')   // )
+    .replace(/\|/g, '&#124;')  // |
+    .replace(/\[/g, '&#91;')   // [
+    .replace(/\]/g, '&#93;')   // ]
+    .replace(/\{/g, '&#123;')  // {
+    .replace(/\}/g, '&#125;'); // }
+}
+
+/**
+ * Sanitizes Mermaid chart syntax by escaping special characters in node labels and edge labels
+ * This fixes parsing errors caused by parentheses, pipes, and other special chars
  */
 function sanitizeMermaidChart(chart: string): string {
   // Split into lines to process each line
@@ -19,6 +33,22 @@ function sanitizeMermaidChart(chart: string): string {
   const sanitizedLines = lines.map(line => {
     // Skip comment lines
     if (line.trim().startsWith('%%')) {
+      return line;
+    }
+
+    // Match edge connections with labels: N1 -->|label| N2
+    const edgePattern = /^(\s*)(\w+)(\s*--[->]+\|)([^|]+)(\|\s*\w+)(\s*)$/;
+    const edgeMatch = line.match(edgePattern);
+    if (edgeMatch) {
+      const [, indent, source, arrow, label, target, trailing] = edgeMatch;
+      const hasSpecialChars = label.includes('(') || label.includes(')') ||
+                              label.includes('|') || label.includes('[') ||
+                              label.includes(']') || label.includes('{') ||
+                              label.includes('}');
+      if (hasSpecialChars) {
+        const sanitizedLabel = sanitizeText(label);
+        return `${indent}${source}${arrow}${sanitizedLabel}${target}${trailing}`;
+      }
       return line;
     }
 
@@ -37,15 +67,17 @@ function sanitizeMermaidChart(chart: string): string {
         const [, indent, nodeId, openBracket, content, closeBracket, trailing] = match;
 
         // Check if content has problematic characters that need escaping
-        if (content.includes('(') || content.includes(')')) {
-          // Replace parentheses with HTML entities to avoid parsing issues
-          const sanitizedContent = content
-            .replace(/\(/g, '&#40;')
-            .replace(/\)/g, '&#41;');
+        const hasSpecialChars = content.includes('(') || content.includes(')') ||
+                                content.includes('|') || content.includes('[') ||
+                                content.includes(']') || content.includes('{') ||
+                                content.includes('}');
+
+        if (hasSpecialChars) {
+          const sanitizedContent = sanitizeText(content);
           return `${indent}${nodeId}${openBracket}${sanitizedContent}${closeBracket}${trailing}`;
         }
 
-        // If already quoted, return as is
+        // If no special chars, return as is
         return line;
       }
     }
