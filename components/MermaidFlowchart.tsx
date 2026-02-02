@@ -8,6 +8,54 @@ interface MermaidFlowchartProps {
   chart: string;
 }
 
+/**
+ * Sanitizes Mermaid chart syntax by escaping special characters in node labels
+ * This fixes parsing errors caused by parentheses and other special chars
+ */
+function sanitizeMermaidChart(chart: string): string {
+  // Split into lines to process each line
+  const lines = chart.split('\n');
+
+  const sanitizedLines = lines.map(line => {
+    // Skip comment lines
+    if (line.trim().startsWith('%%')) {
+      return line;
+    }
+
+    // Match node definitions with various bracket types
+    // Patterns: N1[label], N1{{label}}, N1(label), N1([label])
+    const patterns = [
+      /^(\s*)([A-Z]\w*)(\{{2})(.+?)(\}{2})(\s*)$/,  // {{decision}}
+      /^(\s*)([A-Z]\w*)(\[{1,2})(.+?)(\]{1,2})(\s*)$/,  // [rectangle] or [[subroutine]]
+      /^(\s*)([A-Z]\w*)(\(\[)(.+?)(\]\))(\s*)$/,  // ([stadium])
+      /^(\s*)([A-Z]\w*)(\({1,2})(.+?)(\){1,2})(\s*)$/,  // (round) or ((circle))
+    ];
+
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match) {
+        const [, indent, nodeId, openBracket, content, closeBracket, trailing] = match;
+
+        // Check if content has problematic characters that need escaping
+        if (content.includes('(') || content.includes(')')) {
+          // Replace parentheses with HTML entities to avoid parsing issues
+          const sanitizedContent = content
+            .replace(/\(/g, '&#40;')
+            .replace(/\)/g, '&#41;');
+          return `${indent}${nodeId}${openBracket}${sanitizedContent}${closeBracket}${trailing}`;
+        }
+
+        // If already quoted, return as is
+        return line;
+      }
+    }
+
+    return line;
+  });
+
+  return sanitizedLines.join('\n');
+}
+
 export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -37,8 +85,9 @@ export default function MermaidFlowchart({ chart }: MermaidFlowchartProps) {
     const renderChart = async () => {
       if (containerRef.current) {
         try {
-          const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-          const { svg } = await mermaid.render(id, chart);
+          const id = `mermaid-${Math.random().toString(36).substring(2, 11)}`;
+          const sanitizedChart = sanitizeMermaidChart(chart);
+          const { svg } = await mermaid.render(id, sanitizedChart);
           containerRef.current.innerHTML = svg;
         } catch (error) {
           console.error("Failed to render mermaid chart:", error);
